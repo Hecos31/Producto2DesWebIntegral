@@ -6,4 +6,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Humanizer" Version="3.0.10" />
+  </ItemGroup>
+
 </Project>
