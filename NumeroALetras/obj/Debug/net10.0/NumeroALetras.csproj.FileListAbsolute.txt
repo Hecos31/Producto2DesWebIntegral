@@ -26,3 +26,4 @@ C:\Users\HECTOR\Documents\p2webIntegral\Producto2DesWebIntegral\NumeroALetras\ob
 C:\Users\HECTOR\Documents\p2webIntegral\Producto2DesWebIntegral\NumeroALetras\obj\Debug\net10.0\NumeroALetras.pdb
 C:\Users\HECTOR\Documents\p2webIntegral\Producto2DesWebIntegral\NumeroALetras\obj\Debug\net10.0\NumeroALetras.genruntimeconfig.cache
 C:\Users\HECTOR\Documents\p2webIntegral\Producto2DesWebIntegral\NumeroALetras\obj\Debug\net10.0\ref\NumeroALetras.dll
+C:\Users\HECTOR\Documents\p2webIntegral\Producto2DesWebIntegral\NumeroALetras\obj\Debug\net10.0\NumeroALetras.sourcelink.json
