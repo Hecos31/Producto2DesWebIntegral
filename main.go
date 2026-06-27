@@ -2,10 +2,12 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -19,7 +21,13 @@ type NumberToWordsResponse struct {
 	Result string `xml:"NumberToWordsResult"`
 }
 
-func handlerPaso1(w http.ResponseWriter, r *http.Request) {
+type TranslationResponse struct {
+	ResponseData struct {
+		TranslatedText string `json:"translatedText"`
+	} `json:"responseData"`
+}
+
+func handlerPaso2(w http.ResponseWriter, r *http.Request) {
 	numero := r.PathValue("numero")
 
 	soapReq := fmt.Sprintf(`<?xml version="1.0" encoding="utf-8"?>
@@ -31,7 +39,7 @@ func handlerPaso1(w http.ResponseWriter, r *http.Request) {
       </soap:Body>
     </soap:Envelope>`, numero)
 
-	resp, err := http.Post("https://www.dataaccess.com/webservicesserver/NumberConversion.wso",
+	respSOAP, err := http.Post("https://www.dataaccess.com/webservicesserver/NumberConversion.wso",
 		"text/xml; charset=utf-8",
 		bytes.NewBufferString(soapReq))
 
@@ -39,38 +47,54 @@ func handlerPaso1(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error consumiendo SOAP: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer resp.Body.Close()
+	defer respSOAP.Body.Close()
 
-	bodyBytes, _ := io.ReadAll(resp.Body)
+	bodySOAP, _ := io.ReadAll(respSOAP.Body)
 	var envelope Envelope
-	xml.Unmarshal(bodyBytes, &envelope)
+	xml.Unmarshal(bodySOAP, &envelope)
 
 	resultadoIngles := strings.TrimSpace(envelope.Body.Response.Result)
 	if resultadoIngles == "" {
-		resultadoIngles = "Error en SOAP"
+		resultadoIngles = "Error"
 	}
+
+	urlTraduccion := fmt.Sprintf("https://api.mymemory.translated.net/get?q=%s&langpair=en|es", url.QueryEscape(resultadoIngles))
+	
+	respJSON, err := http.Get(urlTraduccion)
+	if err != nil {
+		http.Error(w, "Error consumiendo API de traducción: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer respJSON.Body.Close()
+
+	bodyJSON, _ := io.ReadAll(respJSON.Body)
+	var transResp TranslationResponse
+	
+	json.Unmarshal(bodyJSON, &transResp)
+	resultadoEspanol := transResp.ResponseData.TranslatedText
 
 	html := fmt.Sprintf(`
     <html>
         <head>
             <meta charset="utf-8">
-            <title>Paso 1 - SOAP Golang</title>
+            <title>Paso 2 - Traducción Golang</title>
         </head>
         <body>
-            <h2>Paso 1: Consumo SOAP (Golang)</h2>
+            <h2>Paso 2: Consumo SOAP y Traducción (Golang)</h2>
             <p><strong>Número enviado:</strong> %s</p>
-            <p><strong>Resultado en inglés:</strong> %s</p>
+            <p><strong>Resultado de la función (Paso 1):</strong> %s</p>
+            <p><strong>Resultado final traducido a español:</strong> %s</p>
         </body>
-    </html>`, numero, resultadoIngles)
+    </html>`, numero, resultadoIngles, resultadoEspanol)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Write([]byte(html))
 }
 
 func main() {
-	http.HandleFunc("GET /paso1/{numero}", handlerPaso1)
+	http.HandleFunc("GET /paso2/{numero}", handlerPaso2)
 
-	fmt.Println("Servidor Golang levantado. Entra a http://localhost:8080/paso1/25")
+	fmt.Println("Servidor Golang listo para el Paso 2. Entra a http://localhost:8080/paso2/25")
 	
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		fmt.Println("Error al iniciar el servidor:", err)
