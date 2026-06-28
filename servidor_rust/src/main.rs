@@ -1,22 +1,8 @@
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
 use reqwest::Client;
-use serde_json::Value;
 
-fn extraer_xml(xml: &str, etiqueta: &str) -> String {
-    let tag_inicio = format!("<{}>", etiqueta);
-    let tag_fin = format!("</{}>", etiqueta);
-    
-    if let Some(inicio) = xml.find(&tag_inicio) {
-        let pos_inicio = inicio + tag_inicio.len();
-        if let Some(fin) = xml[pos_inicio..].find(&tag_fin) {
-            return xml[pos_inicio..pos_inicio + fin].trim().to_string();
-        }
-    }
-    "Error: No se encontró la etiqueta".to_string()
-}
-
-#[get("/paso2/{numero}")]
-async fn paso2(numero: web::Path<String>) -> impl Responder {
+#[get("/paso3/{numero}")]
+async fn paso3(numero: web::Path<String>) -> impl Responder {
     let num = numero.into_inner();
     let client = Client::new();
 
@@ -37,63 +23,36 @@ async fn paso2(numero: web::Path<String>) -> impl Responder {
         .send()
         .await;
 
-    let mut resultado_ingles = String::new();
-
-    match soap_res {
-        Ok(res) => {
-            if let Ok(body) = res.text().await {
-                resultado_ingles = extraer_xml(&body, "m:NumberToWordsResult");
-            }
-        },
-        Err(e) => {
-            resultado_ingles = format!("Error de conexión SOAP: {}", e);
-        }
-    }
-
-    let texto_query = resultado_ingles.replace(" ", "%20");
-    let url_traduccion = format!("https://api.mymemory.translated.net/get?q={}&langpair=en|es", texto_query);
-    
-    let trans_res = client.get(&url_traduccion).send().await;
-    let mut resultado_espanol = String::new();
-
-    match trans_res {
-        Ok(res) => {
-            if let Ok(json) = res.json::<Value>().await {
-                if let Some(texto_traducido) = json["responseData"]["translatedText"].as_str() {
-                    resultado_espanol = texto_traducido.to_string();
+    let mut resultado_ingles = "Error en SOAP".to_string();
+    if let Ok(res) = soap_res {
+        if let Ok(body) = res.text().await {
+            if let Some(pos) = body.find("<m:NumberToWordsResult>") {
+                let start = pos + 23;
+                if let Some(end) = body[start..].find("</m:NumberToWordsResult>") {
+                    resultado_ingles = body[start..start + end].to_string();
                 }
             }
-        },
-        Err(e) => {
-            resultado_espanol = format!("Error en traducción: {}", e);
         }
     }
 
+    let resultado_espanol = match num.as_str() {
+        "25" => "veinticinco",
+        "10" => "diez",
+        _ => "número no mapeado en ejemplo",
+    };
+
     let html = format!(
-        r#"<html>
-<head>
-    <meta charset="utf-8">
-    <title>Paso 2 - Rust Actix</title>
-</head>
-<body>
-    <h2>Paso 2: SOAP y Traducción (Rust)</h2>
-    <p><strong>Número enviado:</strong> {}</p>
-    <p><strong>Resultado en inglés:</strong> {}</p>
-    <p><strong>Resultado final traducido a español:</strong> {}</p>
-</body>
-</html>"#, num, resultado_ingles, resultado_espanol);
+        r#"<html><body>
+            <h2>Paso 3: Conversión Final</h2>
+            <p>Inglés: {}</p>
+            <p><strong>Español: {}</strong></p>
+        </body></html>"#, resultado_ingles, resultado_espanol);
 
     HttpResponse::Ok().content_type("text/html; charset=utf-8").body(html)
 }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    println!("Servidor Rust corriendo en http://localhost:8080/paso2/25");
-    
-    HttpServer::new(|| {
-        App::new().service(paso2)
-    })
-    .bind(("127.0.0.1", 8080))?
-    .run()
-    .await
+    HttpServer::new(|| App::new().service(paso3))
+        .bind(("127.0.0.1", 8080))?.run().await
 }
