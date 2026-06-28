@@ -1,6 +1,9 @@
+[package]
+name = "servidor_rust"
+version = "0.1.0"
+edition = "2021"
+
 [dependencies]
 actix-web = "4.4"
 reqwest = { version = "0.11", default-features = false, features = ["rustls-tls"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
-# Librería para convertir números a palabras fácilmente
-num-words = "0.1.4"
