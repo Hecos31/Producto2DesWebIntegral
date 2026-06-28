@@ -1,5 +1,6 @@
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
 use reqwest::Client;
+use serde_json::Value;
 
 fn extraer_xml(xml: &str, etiqueta: &str) -> String {
     let tag_inicio = format!("<{}>", etiqueta);
@@ -14,8 +15,8 @@ fn extraer_xml(xml: &str, etiqueta: &str) -> String {
     "Error: No se encontró la etiqueta".to_string()
 }
 
-#[get("/paso1/{numero}")]
-async fn paso1(numero: web::Path<String>) -> impl Responder {
+#[get("/paso2/{numero}")]
+async fn paso2(numero: web::Path<String>) -> impl Responder {
     let num = numero.into_inner();
     let client = Client::new();
 
@@ -49,28 +50,48 @@ async fn paso1(numero: web::Path<String>) -> impl Responder {
         }
     }
 
+    let texto_query = resultado_ingles.replace(" ", "%20");
+    let url_traduccion = format!("https://api.mymemory.translated.net/get?q={}&langpair=en|es", texto_query);
+    
+    let trans_res = client.get(&url_traduccion).send().await;
+    let mut resultado_espanol = String::new();
+
+    match trans_res {
+        Ok(res) => {
+            if let Ok(json) = res.json::<Value>().await {
+                if let Some(texto_traducido) = json["responseData"]["translatedText"].as_str() {
+                    resultado_espanol = texto_traducido.to_string();
+                }
+            }
+        },
+        Err(e) => {
+            resultado_espanol = format!("Error en traducción: {}", e);
+        }
+    }
+
     let html = format!(
         r#"<html>
 <head>
     <meta charset="utf-8">
-    <title>Paso 1 - Consumo SOAP en Rust</title>
+    <title>Paso 2 - Rust Actix</title>
 </head>
 <body>
-    <h2>Paso 1: Consumo SOAP (Rust)</h2>
+    <h2>Paso 2: SOAP y Traducción (Rust)</h2>
     <p><strong>Número enviado:</strong> {}</p>
     <p><strong>Resultado en inglés:</strong> {}</p>
+    <p><strong>Resultado final traducido a español:</strong> {}</p>
 </body>
-</html>"#, num, resultado_ingles);
+</html>"#, num, resultado_ingles, resultado_espanol);
 
     HttpResponse::Ok().content_type("text/html; charset=utf-8").body(html)
 }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    println!("Servidor Rust corriendo en http://localhost:8080/paso1/25");
+    println!("Servidor Rust corriendo en http://localhost:8080/paso2/25");
     
     HttpServer::new(|| {
-        App::new().service(paso1)
+        App::new().service(paso2)
     })
     .bind(("127.0.0.1", 8080))?
     .run()

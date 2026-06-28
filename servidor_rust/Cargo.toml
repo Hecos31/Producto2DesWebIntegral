@@ -4,6 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+# Framework web (El equivalente a Spring Boot / Sinatra)
 actix-web = "4.4"
-reqwest = { version = "0.11", default-features = false, features = ["rustls-tls"] }
+# Cliente HTTP con soporte JSON y motor TLS nativo para evitar errores en Windows
+reqwest = { version = "0.11", default-features = false, features = ["rustls-tls", "json"] }
+# Para procesar el JSON de la traducción
+serde_json = "1.0"
+# Motor asíncrono
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
